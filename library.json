@@ -1,0 +1,20 @@
+{
+  "name": "LovyanGUI",
+  "description": "GUI Graphical User Interface with LovyanGFX. contain TreeView, GridView, OnScreenKeyboard",
+  "keywords": "LCD, TFT, GFX, LGFX, GUI, m5stack, esp32, wioterminal",
+  "authors": {
+    "name": "lovyan03",
+    "url": "https://github.com/lovyan03",
+    "maintainer": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lovyan03/LovyanGUI"
+  },
+  "version": "0.0.1",
+  "framework": "arduino",
+  "platforms": "espressif32, atmelsam",
+  "build": {
+    "libArchive": false
+  }
+}
