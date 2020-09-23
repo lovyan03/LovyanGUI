@@ -14,6 +14,9 @@
   "version": "0.0.1",
   "framework": "arduino",
   "platforms": "espressif32, atmelsam",
+  "dependencies" : {
+    "LovyanGFX": ">0.2.1"
+  },
   "build": {
     "libArchive": false
   }
