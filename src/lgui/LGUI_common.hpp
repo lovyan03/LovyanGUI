@@ -1,6 +1,10 @@
 #ifndef LGUI_COMMON_HPP_
 #define LGUI_COMMON_HPP_
 
+#define LGFX_USE_V1
+
+#include <LovyanGFX.h>
+
 #include <cstdint>
 #include <algorithm>
 #include <vector>

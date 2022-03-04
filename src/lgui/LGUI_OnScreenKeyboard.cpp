@@ -1,6 +1,5 @@
 #include "LGUI_OnScreenKeyboard.hpp"
 #include "../LovyanGUI.hpp"
-#include <LovyanGFX.hpp>
 
 namespace lgui
 {

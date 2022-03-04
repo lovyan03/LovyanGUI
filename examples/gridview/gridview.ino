@@ -1,6 +1,4 @@
-#define LGFX_AUTODETECT
 
-#include <LovyanGFX.hpp>
 #include <LovyanGUI.hpp>
 
 #include <string>

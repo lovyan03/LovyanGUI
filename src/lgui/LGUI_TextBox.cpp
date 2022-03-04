@@ -1,6 +1,5 @@
 #include "LGUI_TextBox.hpp"
-#include "LovyanGUI.hpp"
-#include <LovyanGFX.hpp>
+#include "../LovyanGUI.hpp"
 
 namespace lgui
 {
@@ -24,7 +23,7 @@ namespace lgui
     bool drawall = _redraw || gui->hasInvalidate(_visible_client_rect);
 //drawall |= _invalidated;
 
-    if (_cursor_drawed != (has_focus && (gui->getMsec() & 0x180)))
+    if (_cursor_drawed != (has_focus && (gui->getGFX()->isEPD() || (gui->getMsec() & 0x180))))
     {
       _cursor_drawed = !_cursor_drawed;
       drawall = true;

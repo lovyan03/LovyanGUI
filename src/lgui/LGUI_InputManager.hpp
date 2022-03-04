@@ -4,10 +4,8 @@
 #include <cstdint>
 #include <vector>
 
-namespace lgfx
-{
-  class LGFX_Device;
-}
+#include "LGUI_common.hpp"
+
 namespace lgui
 {
   class LovyanGUI;

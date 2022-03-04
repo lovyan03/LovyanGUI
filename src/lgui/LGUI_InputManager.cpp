@@ -1,8 +1,6 @@
-#define LGFX_AUTODETECT
 
 #include "LGUI_InputManager.hpp"
-#include "LovyanGUI.hpp"
-#include <LovyanGFX.hpp>
+#include "../LovyanGUI.hpp"
 
 #if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 #include <soc/sens_reg.h>
@@ -44,14 +42,10 @@ namespace lgui
     if (0 <= ionum) lgfx::lgfxPinMode(ionum, lgfx::pin_mode_t::input_pullup);
   }
 
-  input_t LovyanUOM::update(LGFX_Device* gfx)
+  input_t LovyanUOM::update(lgfx::LGFX_Device* gfx)
   {
     _msec_last = _msec;
-#if defined ( ARDUINO )
-    _msec = millis();
-#else
-    _msec = xTaskGetTickCount() * portTICK_PERIOD_MS;
-#endif
+    _msec = lgfx::millis();
 
     if (gfx->touch()) {
       std::int32_t x, y;
@@ -62,6 +56,7 @@ namespace lgui
         _touch_prev_y = _touch_y;
       }
       bool flgtouch = gfx->getTouchRaw(&x, &y);
+// ESP_LOGE("DEBUG","%d", flgtouch);
       if (flgtouch) {
         _touch_x = x;
         _touch_y = y;
@@ -267,7 +262,9 @@ namespace lgui
       if (tmp[1] & 0x02) {
         value |= bit_btn_b;
         tmp[1] = 0x02;
-        lgfx::i2c::writeBytes(I2C_NUM_1, 0x34, tmp, 2);
+        lgfx::i2c::beginTransaction(I2C_NUM_1, 0x34, 400000);
+        lgfx::i2c::writeBytes(I2C_NUM_1, tmp, 2);
+        lgfx::i2c::endTransaction(I2C_NUM_1);
       }
     }
 
@@ -283,7 +280,9 @@ namespace lgui
       if (tmp[1] & 0x02) {
         value |= bit_btn_b;
         tmp[1] = 0x02;
-        lgfx::i2c::writeBytes(I2C_NUM_0, 0x35, tmp, 2);
+        lgfx::i2c::beginTransaction(I2C_NUM_0, 0x35, 400000);
+        lgfx::i2c::writeBytes(I2C_NUM_0, tmp, 2);
+        lgfx::i2c::endTransaction(I2C_NUM_0);
       }
     }
 

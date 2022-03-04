@@ -1,6 +1,8 @@
 #ifndef LOVYANGUI_HPP_
 #define LOVYANGUI_HPP_
 
+#include <LGFX_AUTODETECT.hpp>
+
 #ifdef min
 #undef min
 #endif

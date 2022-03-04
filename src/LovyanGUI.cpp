@@ -1,5 +1,4 @@
 #include "LovyanGUI.hpp"
-#include <LovyanGFX.hpp>
 
 #if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 #include <soc/sens_reg.h>
@@ -20,7 +19,7 @@ namespace lgui
   static LGUI_InputManager* create_default_im(LGFX_Device* gfx)
   {
     LGUI_InputManager *im = nullptr;
-    auto board = gfx->getBoard();
+    auto board = ((LGFX*)gfx)->getBoard();
 
     switch (board) {
 
@@ -40,6 +39,7 @@ namespace lgui
       break;
 
     case lgfx::board_M5StackCore2:
+    case lgfx::board_M5Tough:
       im = new LGUI_InputManager_M5StackCore2();
       break;
 
@@ -68,9 +68,16 @@ namespace lgui
       im->setGPIO(raw_key_t::btn_c, 37, true);
       break;
 
+    case lgfx::board_M5Paper:
+    case lgfx::board_M5Stack_CoreInk:
+      im->setGPIO(raw_key_t::btn_a, 37, true);
+      im->setGPIO(raw_key_t::btn_b, 38, true);
+      im->setGPIO(raw_key_t::btn_c, 39, true);
+      break;
+
     case lgfx::board_TTGO_TWatch:
       im->setGPIO(raw_key_t::btn_c, 36, true);
-      lgfx::i2c::init(I2C_NUM_0, 21, 22, 400000); // for AXP202
+      lgfx::i2c::init(I2C_NUM_0, 21, 22); // for AXP202
       break;
 
     case lgfx::board_ODROID_GO:
@@ -372,6 +379,11 @@ namespace lgui
     _gfx->waitDMA();
     //if (_canvas->width() != width || _canvas->height() != height)
     //{
+    if (_canvas->getColorDepth() != colorDepth)
+    {
+      _canvas->deleteSprite();
+      _canvas->setColorDepth(colorDepth);
+    }
     _canvas->createSprite(width, height);
     //}
     //_canvas->clearClipRect();

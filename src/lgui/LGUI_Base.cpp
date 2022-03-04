@@ -1,6 +1,5 @@
 #include "LGUI_Base.hpp"
-#include "LovyanGUI.hpp"
-#include <LovyanGFX.hpp>
+#include "../LovyanGUI.hpp"
 
 namespace lgui
 {

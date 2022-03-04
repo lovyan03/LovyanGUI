@@ -1,8 +1,5 @@
 #include <WiFi.h>
 
-#define LGFX_AUTODETECT
-
-#include <LovyanGFX.hpp>
 #include <LovyanGUI.hpp>
 
 #include <cstdio>
@@ -23,7 +20,7 @@ static lgui::LGUI_TreeView tv;          // ツリービュー
 static lgui::LGUI_TreeItem tiWifi;      // ツリービュー(WiFi)
 static std::vector<std::string> gridstrs(26*30); // グリッドの文字列保持用変数
 
-static void onChangeExpand_wifi(lgui::LGUI_TreeItem* sender, bool expand)
+static void onChangeExpand_wifi(lgui::LGUI_TreeItem* sender, bool &expand)
 {
   if (expand)
   {

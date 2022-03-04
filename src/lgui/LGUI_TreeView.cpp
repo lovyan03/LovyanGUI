@@ -1,6 +1,5 @@
 #include "LGUI_TreeView.hpp"
-#include "LovyanGUI.hpp"
-#include <LovyanGFX.hpp>
+#include "../LovyanGUI.hpp"
 
 namespace lgui
 {
@@ -53,8 +52,11 @@ namespace lgui
     if (code == input_fn2)
     {
       if (!ti->_expanded) expand(ti);
-      auto next = getNextControl(_focusControl, true, false, false);
-      if (next != nullptr) next->setFocus();
+      else
+      {
+        auto next = getNextControl(_focusControl, true, false, false);
+        if (next != nullptr) next->setFocus();
+      }
     }
     else
     if (code == input_t::input_ok || code == input_t::input_enter)
@@ -144,7 +146,7 @@ namespace lgui
     LGUI_TreeView::sortTree(_ctl_zorder.begin());
 
     Rectangle hiderect;
-    std::uint32_t hideleft = ~0;
+    std::uint32_t collapse_left = ~0;
     std::int32_t bottom = 0;
     std::int32_t right = 0;
     for (auto ctl : _ctl_zorder)
@@ -155,10 +157,16 @@ namespace lgui
       {
         ti->_tree_parent->_tree_firstchild = ti;
       }
-      if (hideleft < ti->_relative_dest_rect.left)
+      if (collapse_left < ti->_relative_dest_rect.left)
       {
         //hideitem
         ti->setHideRect(hiderect);
+        // 画面外にあるアイテムは移動処理を省略し速やかにhideする
+        if (ti->_relative_move_rect.bottom > ti->_parent->getClientRect().height())
+        {
+          ti->_relative_move_rect = hiderect;
+        }
+
         //ti->_relative_hide_rect.offset(hideleft - _relative_hide_rect.left, top - _relative_hide_rect.top);
         ti->hide();
         ti->_expanded = false;
@@ -167,13 +175,13 @@ namespace lgui
 
       if (ti->_expanded)
       {
-        hideleft = ~0;
+        collapse_left = ~0;
       }
       else
       {
-        hideleft = ti->_relative_dest_rect.left;
+        collapse_left = ti->_relative_dest_rect.left;
         hiderect = ti->getDestRect();
-        hiderect.top = hiderect.bottom;
+        hiderect.bottom = hiderect.top;
       }
       if (ti->getState() != state_t::state_visible)
       {
@@ -226,6 +234,7 @@ namespace lgui
 
   void LGUI_TreeView::expand(LGUI_TreeItem* target)
   {
+    target->setRedraw(redraw_t::redraw_body);
     target->_expanded = true;
     if (onChangeExpand)
     {
@@ -238,7 +247,6 @@ namespace lgui
       if (!target->_expanded) return;
     }
 
-    target->setRedraw(redraw_t::redraw_body);
     LGUI_TreeItem* lastitem = nullptr;
     for (auto ctl : _ctl_zorder)
     {
@@ -276,11 +284,7 @@ namespace lgui
     for (auto ctl : _ctl_zorder)
     {
       auto ti = reinterpret_cast<LGUI_TreeItem*>(ctl);
-      if (ti->getTreeParent() == target)
-      {
-        ti->setHideRect(target->getDestRect());
-        ti->hide();
-      }
+      if (ti->getTreeParent() == target) { ti->hide(); }
     }
     initTree();
   }
@@ -359,7 +363,7 @@ namespace lgui
           canvas->setTextColor(0xFFFF);
           canvas->setTextDatum(lgfx::textdatum_t::middle_left);
           canvas->drawString(ti->title.c_str(), 16, canvas->height() >> 1);
-          if (ti->_tree_firstchild != nullptr)
+          if (ti->canExpand || ti->_tree_firstchild != nullptr)
           {
             canvas->drawBitmap(4, (canvas->height() - 7) >> 1, icon_ext[ti->_expanded], 8, 7, 0xFFFF);
           }

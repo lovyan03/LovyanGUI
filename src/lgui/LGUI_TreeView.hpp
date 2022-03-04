@@ -14,6 +14,7 @@ namespace lgui
   friend LGUI_TreeView;
   public:
     std::string title;
+    bool canExpand = false;
 
     void (*onChangeExpand)(LGUI_TreeItem* sender, bool& expand) = nullptr;
 

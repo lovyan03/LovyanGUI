@@ -1,6 +1,4 @@
-#define LGFX_AUTODETECT
 
-#include <LovyanGFX.hpp>
 #include <LovyanGUI.hpp>
 #include <Update.h>
 
@@ -14,6 +12,8 @@
 #include <string>
 #include <vector>
 
+static constexpr char TITLE_SDUPDATER[] = "SD-Updater";
+
 static LGFX lcd;                        // GFXライブラリのインスタンス
 static lgui::LovyanGUI gui;             // GUIライブラリのインスタンス
 static lgui::LGUI_TextBox textbox;      // テキストボックス
@@ -22,6 +22,10 @@ static lgui::LGUI_TreeView tv;          // ツリービュー
 static lgui::LGUI_TreeItem* tiSD;       // ツリーアイテム(SD)
 static lgui::LGUI_TreeItem* tiWifi;     // ツリーアイテム(WiFi Client)
 static std::vector<std::string> gridstrs(26*30); // グリッドの文字列保持用変数
+
+static int pin_tf_ss = -1; // SD(TF)カードのSPI SSピン番号
+static int flg_list_sd = 0;
+static int label_height = 16;
 
 static constexpr char tiWifiTitle[] = "WiFi client";
 
@@ -42,7 +46,7 @@ static lgui::LGUI_TreeItem* treeitem(const char* title)
 {
   auto res = new lgui::LGUI_TreeItem();
   res->title = title;
-  res->setDestRect(0, 0, 160, 32);
+  res->setDestRect(0, 0, std::max(160, lcd.width()/2), std::max(lcd.touch() ? 32 : 24, lcd.height()/10));
   tv.addControl(res);
   return res;
 }
@@ -99,50 +103,69 @@ static void onChangeExpand_FSitem(lgui::LGUI_TreeItem* sender, bool& expand)
   lcd.startWrite();
 }
 
+static void sd_begin(void)
+{
+  int retry = 10;
+  do
+  {
+    SD.end();
+  } while (!SD.begin(pin_tf_ss, SPI, 25000000) && --retry);
+}
+
+static void list_sd(void)
+{
+  auto items = tv.getSubItems(tiSD, true);
+  for (auto ctl : items)
+  {
+    tv.removeControl(ctl);
+    delete ctl;
+  }
+
+  lcd.endWrite();
+
+  sd_begin();
+
+  lgui::LGUI_TreeItem* ti;
+  String path = "";
+
+  File root = SD.open(path.length() ? path : "/");
+  File file = root.openNextFile();
+  String ptmp;
+  String fn;
+  String ext;
+  while (file) {
+    ptmp = file.name();
+    //fn = ptmp.substring(path.length() + 1);
+    fn = ptmp;
+    if (!file.isDirectory()) {
+      int idx = fn.lastIndexOf('.');
+      ext = fn.substring(idx + 1);
+      ext.toLowerCase();
+      //fn = fn.substring(0, idx);
+      if (ext == "bin" && !fn.startsWith(".") && fn != "menu" && file.size() > 100) {
+        ti = treeitem(fn.c_str());
+        ti->setTreeParent(tiSD);
+        ti->onChangeExpand = onChangeExpand_FSitem;
+      }
+    }
+    file = root.openNextFile();
+  }
+  root.close();
+
+  lcd.startWrite();
+  tiSD->title = TITLE_SDUPDATER;
+  tv.expand(tiSD);
+  flg_list_sd = false;
+}
+
 static void onChangeExpand_FS(lgui::LGUI_TreeItem* sender, bool& expand)
 {
-  if (expand)
+  if (expand && !flg_list_sd)
   {
-    auto items = tv.getSubItems(tiSD, true);
-    for (auto ctl : items)
-    {
-      tv.removeControl(ctl);
-      delete ctl;
-    }
-    lcd.endWrite();
-
-    SD.end();
-    SD.begin(4, SPI, 20000000);
-
-    lgui::LGUI_TreeItem* ti;
-    String path = "";
-
-    File root = SD.open(path.length() ? path : "/");
-    File file = root.openNextFile();
-    String ptmp;
-    String fn;
-    String ext;
-    while (file) {
-      ptmp = file.name();
-      //fn = ptmp.substring(path.length() + 1);
-      fn = ptmp;
-      if (!file.isDirectory()) {
-        int idx = fn.lastIndexOf('.');
-        ext = fn.substring(idx + 1);
-        ext.toLowerCase();
-        //fn = fn.substring(0, idx);
-        if (ext == "bin" && !fn.startsWith(".") && fn != "menu" && file.size() > 100) {
-          ti = treeitem(fn.c_str());
-          ti->setTreeParent(sender);
-          ti->onChangeExpand = onChangeExpand_FSitem;
-        }
-      }
-      file = root.openNextFile();
-    }
-    root.close();
-
-    lcd.startWrite();
-  }  
+    tiSD->title = "SD loading...";
+    expand = false;
+    flg_list_sd = true;
+  }
 }
 
 static void onChangeExpand_wifiitem(lgui::LGUI_TreeItem* sender, bool& expand)
@@ -182,7 +205,7 @@ static void onChangeExpand_wifi(lgui::LGUI_TreeItem* sender, bool& expand)
   else
   {
     WiFi.scanDelete();
-  }  
+  }
 }
 
 // スクリーンキーボードの表示状態が変更される時のコールバック関数
@@ -202,8 +225,8 @@ static void onChangeState_osk(lgui::LGUI_Base* sender, lgui::state_t state)
   if (state != lgui::state_t::state_visible) return;
   auto osk = gui.getKeyboard();
   auto osk_hight = osk->getDestRect().height();
-  textbox.setDestRect(0, lcd.height()-osk_hight-16, lcd.width(), 16);
-  textbox.setHideRect(0, lcd.height()-osk_hight-16, 0, 16);
+  textbox.setDestRect(0, lcd.height()-osk_hight - label_height, lcd.width(), label_height);
+  textbox.setHideRect(0, lcd.height()-osk_hight - label_height,           0, label_height);
   textbox.show();
 
   auto r = tv.getDestRect();
@@ -212,16 +235,7 @@ static void onChangeState_osk(lgui::LGUI_Base* sender, lgui::state_t state)
 
   tv.ensureVisible(tv.getFocusControl());
 }
-//*/
-void setup2(void)
-{
-  lcd.begin();
-  //SD.begin(4, SPI, 20000000);
-  //SD.end();
-  //SD.begin(4, SPI, 20000000);
-}
 
-//*/
 void setup(void)
 {
   //SD.begin();
@@ -230,19 +244,60 @@ void setup(void)
   Serial.begin(115200);
 
   lcd.begin();
-  if (lcd.getBoard() == lgfx::board_t::board_M5Stack
-   || lcd.getBoard() == lgfx::board_t::board_M5StackCore2)
-  {
-    tiSD = treeitem("SD-Updater");
-    tiSD->onChangeExpand = onChangeExpand_FS;
-    SD.end();
-    SD.begin(4, SPI, 20000000);
-  }
-//*/
-  lcd.setBrightness(128);
+  lcd.setEpdMode(epd_mode_t::epd_fast);
+  lcd.fillScreen(0);
+  lcd.setBrightness(64);
   if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
-  gui.setFont(&fonts::Font2);
+  label_height = std::max(16, lcd.height() / 14);
+
+  pin_tf_ss = -1;
+  if (lcd.getBoard() == lgfx::board_t::board_M5Stack
+   || lcd.getBoard() == lgfx::board_t::board_M5StackCore2
+   || lcd.getBoard() == lgfx::board_t::board_M5Paper)
+  {
+    pin_tf_ss = 4;
+  }
+  else
+  if (lcd.getBoard() == lgfx::board_t::board_TTGO_TWatch
+   || lcd.getBoard() == lgfx::board_t::board_TTGO_TS)
+  {
+    pin_tf_ss = 13;
+  }
+  else
+  if (lcd.getBoard() == lgfx::board_t::board_ODROID_GO)
+  {
+    pin_tf_ss = 22;
+  }
+  else
+  if (lcd.getBoard() == lgfx::board_t::board_LoLinD32)
+  {
+    pin_tf_ss = 5;
+  }
+
+//  if (lcd.panel()->isEPD()) 
+  {
+    gui.smoothMove = 0; // EPDはスムーズ移動をオフにする
+  }
+
+  if (lcd.getBoard() == lgfx::board_t::board_M5Paper)
+  {
+    gui.setFont(&fonts::FreeMono24pt7b);
+  }
+  else
+  {
+    gui.setFont(&fonts::Font2);
+  }
+
+  if (pin_tf_ss >= 0)
+  {
+    sd_begin();
+    tiSD = treeitem(TITLE_SDUPDATER);
+    tiSD->canExpand = true;
+    tiSD->onChangeExpand = onChangeExpand_FS;
+  }
+//*/
+
 
   //gui.setHideRect(10, 10, lcd.width()-20, 1);
   //gui.setDestRect(10, 10, lcd.width()-20, lcd.height()-20);
@@ -278,13 +333,14 @@ void setup(void)
 
 //*/
 
+  label1.setDestRect(0, 0, lcd.width(), label_height);
+
   // グリッドの設定
   //tv.onInput        = onInput_grid;        // 入力処理関数の設定
   //tv.onTouch        = onTouch_grid;        // タッチ処理関数の設定
   tv.frameWidth = 2;            // 外枠の幅
   //tv.borderWidth = 1;           // グリッド間の枠の幅
   //tv.simpleMode = false;        // シンプルモード解除(縦横移動可能になる)
-  //gui.smoothMove = 32;           // スムーズ移動係数 (0でスムーズ移動無効)
   tv.visibleVScroll = true;     // 縦スクロールバー表示フラグ
   //tv.visibleHScroll = true;     // 横スクロールバー表示フラグ
   //tv.scrollBarWidth = 5;        // スクロールバー表示幅
@@ -292,19 +348,19 @@ void setup(void)
   //tv.setDefaultColumnWidth(72); // 列の幅のデフォルト値
   //tv.setColumnWidth(0, 24);     // 列の幅の個別設定 (先頭列の幅を24に
   //std::int32_t treewidth = lcd.width()*2/3;
-  std::int32_t treewidth = lcd.width();
-  tv.setDestRect(0, 16, treewidth, lcd.height()-16);
+  std::int32_t treewidth = lcd.width() > 240 ? lcd.width()*2/3 : lcd.width();
+  tv.setDestRect(0, label_height, treewidth, lcd.height()-label_height);
 
   // スクリーンキーボードの設定
   auto osk = gui.getKeyboard();
   //osk->onHiding = onHiding_osk;
   osk->onChangeState = onChangeState_osk;
   osk->frameWidth = 0;
-  osk->setFont(&fonts::Font0);
+//  osk->setFont(&fonts::Font0);
   osk->setTarget(&textbox);
   auto osk_hight = osk->getDestRect().height();
-  textbox.setDestRect(0, lcd.height()-osk_hight-16, lcd.width(), 16);
-  textbox.setHideRect(0, lcd.height()-osk_hight-16, 0, 16);
+  //textbox.setDestRect(0, lcd.height()-osk_hight - label_height, lcd.width(), label_height);
+  //textbox.setHideRect(0, lcd.height()-osk_hight - label_height,           0, label_height);
   textbox.hide();
 
 //osk.setup(0, lcd.height()-64, lcd.width(), 64);
@@ -316,10 +372,9 @@ void setup(void)
 
 //  panel1.setDestRect(treewidth, 16, lcd.width() - treewidth, lcd.height() - 16);
 
-  label1.setDestRect(0, 0, lcd.width(), 16);
-
   {
     tiWifi = treeitem(tiWifiTitle);
+    tiWifi->canExpand = true;
     tiWifi->onChangeExpand = onChangeExpand_wifi;
     //auto ti = treeitem("WiFi");
     //tiWifi->setTreeParent(ti);
@@ -346,6 +401,9 @@ void loop(void)
   std::uint32_t msec = xTaskGetTickCount() * portTICK_PERIOD_MS;
 #endif
   gui.loop();
+  lcd.display();
+
+  if (flg_list_sd) { list_sd(); }
 
   if (wifi_ap_count > 0)
   {
@@ -369,9 +427,12 @@ void loop(void)
       str += "STA:";
       str += WiFi.localIP().toString().c_str();
     }
-    label1.setText(str.c_str());
+    if (strcmp(label1.getText(), str.c_str()))
+    {
+      label1.setText(str.c_str());
+      label1.setRedraw();
+    }
   }
-  label1.setRedraw();
 /*
   auto freemem = esp_get_free_heap_size();
   //lcd.setCursor(0,0);
@@ -387,6 +448,7 @@ void loop(void)
   msec = xTaskGetTickCount() * portTICK_PERIOD_MS - msec;
 #endif
   if (10 > msec)  delay(10 - msec);
+  Serial.printf("ms:%ul \r\n", (uint32_t)millis());
 }
 #if !defined ( ARDUINO )
 extern "C" {
